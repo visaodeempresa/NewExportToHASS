@@ -112,7 +112,7 @@ public class ExportHass extends Plugin {
         }
 
 		public ExportHassAction() {
-	        putPropertyValue(Property.NAME, "Export obj to HASS");
+	        putPropertyValue(Property.NAME, "Create .OBJ file for Home Assistant");
 	        putPropertyValue(Property.MENU, "Tools");
 	        // Enables the action by default
 	        setEnabled(true);

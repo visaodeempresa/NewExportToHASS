@@ -49,6 +49,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 import java.util.regex.*;
@@ -1523,6 +1525,40 @@ public class OBJWriter extends FilterWriter {
       jsonwriter.write(finaljson);
       writer.close();
       jsonwriter.close();
+
+      // Generate <objname>-README.MD with a deduplicated table of object names
+      String readmeEntryName = entryName.toLowerCase().endsWith(".obj")
+          ? entryName.substring(0, entryName.length() - 4) + "-README.MD"
+          : entryName + "-README.MD";
+      File readmeFile = new File(tempFolder, readmeEntryName);
+      Writer readmeWriter = new OutputStreamWriter(
+          new BufferedOutputStream(new FileOutputStream(readmeFile)), "UTF-8");
+      // Extract unique base names from the JSON (strip lvlNNN prefix and _<digits> suffix)
+      Set<String> uniqueBaseNames = new TreeSet<String>();
+      Pattern keyPattern = Pattern.compile("\"([^\"]+)\"\\s*:\\s*\\{");
+      Matcher keyMatcher = keyPattern.matcher(finaljson);
+      while (keyMatcher.find()) {
+        String name = keyMatcher.group(1);
+        if (name.matches("lvl\\d{3}.*")) {
+          name = name.substring(6); // strip "lvlNNN" prefix
+        }
+        name = name.replaceAll("_\\d+$", ""); // strip trailing _<number>
+        if (!name.isEmpty()) {
+          uniqueBaseNames.add(name);
+        }
+      }
+      StringBuilder readme = new StringBuilder();
+      readme.append("# Home Assistant — Object Reference\n\n");
+      readme.append("Model file: `").append(entryName).append("`\n\n");
+      readme.append("| # | Object Name |\n");
+      readme.append("|---|-------------|\n");
+      int readmeIdx = 1;
+      for (String name : uniqueBaseNames) {
+        readme.append("| ").append(readmeIdx++).append(" | `").append(name).append("` |\n");
+      }
+      readmeWriter.write(readme.toString());
+      readmeWriter.close();
+
       // Create a ZIP file containing temp folder files (OBJ + MTL + texture files)
       zipOut = new ZipOutputStream(new FileOutputStream(zipFile));
       zipOut.setLevel(compressionLevel);
