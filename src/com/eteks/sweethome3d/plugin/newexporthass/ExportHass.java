@@ -148,16 +148,20 @@ public class ExportHass extends Plugin {
 			
 		
 			Integer wallIndex = 0;
+		    Integer roomIndex = 0;
 		    Integer objectIndex = 0;
 		    String level = "";
 
-		    // Pre-pass: count how many times each sanitized room name appears
+		    // Pre-pass: count occurrences of each named room (unnamed rooms are skipped here)
 		    Map<String, Integer> roomNameCount = new HashMap<String, Integer>();
 		    Map<String, Integer> roomNameUsed  = new HashMap<String, Integer>();
 		    for (HomeObject item : home.getHomeObjects()) {
 		        if (item instanceof Room) {
-		            String rn = sanitizeRoomName(((Room) item).getName());
-		            roomNameCount.put(rn, roomNameCount.containsKey(rn) ? roomNameCount.get(rn) + 1 : 1);
+		            String rawName = ((Room) item).getName();
+		            if (rawName != null && !rawName.trim().isEmpty()) {
+		                String rn = sanitizeRoomName(rawName);
+		                roomNameCount.put(rn, roomNameCount.containsKey(rn) ? roomNameCount.get(rn) + 1 : 1);
+		            }
 		        }
 		    }
 
@@ -207,14 +211,21 @@ public class ExportHass extends Plugin {
 			    		} else {
 	    					level = "";
 	    				}
-		    			String rn = sanitizeRoomName(((Room) item).getName());
+		    			String rawRoomName = ((Room) item).getName();
 		    			String roomNodeName;
-		    			if (roomNameCount.containsKey(rn) && roomNameCount.get(rn) > 1) {
-		    			    int idx = roomNameUsed.containsKey(rn) ? roomNameUsed.get(rn) : 1;
-		    			    roomNameUsed.put(rn, idx + 1);
-		    			    roomNodeName = "ROOM_" + rn + "_" + idx;
+		    			if (rawRoomName != null && !rawRoomName.trim().isEmpty()) {
+		    			    // Named room: use sanitized name, add _INDEX only on real collision
+		    			    String rn = sanitizeRoomName(rawRoomName);
+		    			    if (roomNameCount.containsKey(rn) && roomNameCount.get(rn) > 1) {
+		    			        int idx = roomNameUsed.containsKey(rn) ? roomNameUsed.get(rn) : 1;
+		    			        roomNameUsed.put(rn, idx + 1);
+		    			        roomNodeName = "ROOM_" + rn + "_" + idx;
+		    			    } else {
+		    			        roomNodeName = "ROOM_" + rn;
+		    			    }
 		    			} else {
-		    			    roomNodeName = "ROOM_" + rn;
+		    			    // Unnamed room: sequential fallback, never collides
+		    			    roomNodeName = "ROOM_" + (roomIndex++);
 		    			}
 		    			newnode.setName(level + roomNodeName);
 		    		}
