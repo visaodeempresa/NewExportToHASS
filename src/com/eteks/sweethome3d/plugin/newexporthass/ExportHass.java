@@ -1,4 +1,4 @@
-package com.eteks.sweethome3d.plugin.exporthass;
+package com.eteks.sweethome3d.plugin.newexporthass;
 
 import com.eteks.sweethome3d.plugin.PluginAction;
 import com.eteks.sweethome3d.swing.FileContentManager;

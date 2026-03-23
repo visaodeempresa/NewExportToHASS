@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  build.xml - Ant build script for NewExportToHASS plugin
+  Produces: NewExportToHASSPlugin.sh3p (ZIP archive loadable by SweetHome3D)
+
+  Usage:
+    ant clean    - Remove build artifacts
+    ant compile  - Compile Java sources
+    ant package  - Build the .sh3p plugin file
+    ant          - Default: clean + compile + package
+-->
+<project name="NewExportToHASS" default="package" basedir=".">
+
+  <!-- Plugin version (sync with ApplicationPlugin.properties) -->
+  <property name="plugin.version"  value="1.0.0"/>
+  <property name="sh3d.version"    value="6.6"/>
+  <property name="plugin.filename" value="NewExportToHASSPlugin"/>
+
+  <!-- Directories -->
+  <property name="src.dir"     value="src"/>
+  <property name="bin.dir"     value="bin"/>
+  <property name="dist.dir"    value="dist"/>
+
+  <!-- Classpath: SweetHome3D + Java3D + JSON -->
+  <path id="compile.classpath">
+    <fileset dir="." includes="SweetHome3D-${sh3d.version}.jar"/>
+    <fileset dir="." includes="j3dcore.jar"/>
+    <fileset dir="." includes="j3dutils.jar"/>
+    <fileset dir="." includes="vecmath.jar"/>
+    <fileset dir="." includes="json-20210307.jar"/>
+  </path>
+
+  <!-- ============================================================ -->
+  <target name="clean" description="Remove build artifacts">
+    <delete dir="${bin.dir}"/>
+    <delete dir="${dist.dir}"/>
+  </target>
+
+  <!-- ============================================================ -->
+  <target name="compile" depends="clean" description="Compile Java sources">
+    <mkdir dir="${bin.dir}"/>
+    <javac srcdir="${src.dir}"
+           destdir="${bin.dir}"
+           source="1.7"
+           target="1.7"
+           encoding="UTF-8"
+           includeantruntime="false">
+      <classpath refid="compile.classpath"/>
+    </javac>
+    <!-- Copy properties file into bin so it is included in the archive -->
+    <copy todir="${bin.dir}">
+      <fileset dir="${src.dir}"
+               includes="**/ApplicationPlugin.properties"/>
+    </copy>
+  </target>
+
+  <!-- ============================================================ -->
+  <target name="package" depends="compile" description="Build .sh3p plugin archive">
+    <mkdir dir="${dist.dir}"/>
+    <!--
+      SweetHome3D loads .sh3p files as ZIP archives.
+      Required content:
+        - ApplicationPlugin.properties  (at the root of the archive)
+        - com/eteks/sweethome3d/plugin/newexporthass/*.class
+    -->
+    <zip destfile="${dist.dir}/${plugin.filename}-${plugin.version}-sh3d${sh3d.version}.sh3p"
+         compress="true">
+      <!-- Plugin descriptor at archive root -->
+      <zipfileset dir="${bin.dir}/com/eteks/sweethome3d/plugin/newexporthass"
+                  includes="ApplicationPlugin.properties"
+                  fullpath="ApplicationPlugin.properties"/>
+      <!-- Compiled classes in package structure -->
+      <zipfileset dir="${bin.dir}"
+                  includes="com/eteks/sweethome3d/plugin/newexporthass/**/*.class"/>
+      <!-- JSON dependency -->
+      <zipfileset src="json-20210307.jar" prefix="lib"/>
+    </zip>
+    <echo message="Built: ${dist.dir}/${plugin.filename}-${plugin.version}-sh3d${sh3d.version}.sh3p"/>
+  </target>
+
+</project>

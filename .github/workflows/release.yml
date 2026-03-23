@@ -1,0 +1,81 @@
+name: Build and Release
+
+# Trigger on version tags: v1.0.0, v1.2.3, etc.
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── Checkout ──────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── Java 11 (backwards-compatible with target 1.7) ────────────
+      - name: Set up JDK 11
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '11'
+
+      # ── Ant ───────────────────────────────────────────────────────
+      - name: Install Ant
+        run: sudo apt-get install -y ant
+
+      # ── Extract version from tag (strips leading 'v') ─────────────
+      - name: Extract version
+        id: version
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      # ── Patch plugin.version in build.xml to match the tag ────────
+      - name: Patch plugin version
+        run: |
+          sed -i "s|value=\"1.0.0\"|value=\"${{ steps.version.outputs.VERSION }}\"|g" build.xml
+          sed -i "s|version=1.0.0|version=${{ steps.version.outputs.VERSION }}|g" \
+            src/com/eteks/sweethome3d/plugin/newexporthass/ApplicationPlugin.properties
+
+      # ── Build .sh3p ───────────────────────────────────────────────
+      - name: Build plugin
+        run: ant package
+
+      # ── Locate the produced artifact ──────────────────────────────
+      - name: Locate artifact
+        id: artifact
+        run: |
+          FILE=$(ls dist/NewExportToHASSPlugin-*.sh3p)
+          echo "FILE=$FILE" >> "$GITHUB_OUTPUT"
+          echo "NAME=$(basename $FILE)" >> "$GITHUB_OUTPUT"
+
+      # ── Create GitHub Release ─────────────────────────────────────
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: "NewExportToHASS ${{ github.ref_name }}"
+          body: |
+            ## NewExportToHASS ${{ github.ref_name }}
+
+            Fork of [ExportToHASS](https://github.com/adizanni/ExportToHASS) — renamed plugin to avoid conflicts when both plugins are installed simultaneously in SweetHome3D.
+
+            ### Installation
+            1. Download `${{ steps.artifact.outputs.NAME }}` below.
+            2. Copy it to your SweetHome3D plugins folder:
+               - **Linux:** `~/.eteks/sweethome3d/plugins/`
+               - **Windows/macOS:** double-click the `.sh3p` file.
+            3. Restart SweetHome3D.
+            4. Find the action under **Tools → Export obj to HASS (New)**.
+
+            ### Changes vs upstream ExportToHASS
+            - Plugin identifier changed to `New Export Wavefront Obj for HASS`
+            - Java package renamed to `com.eteks.sweethome3d.plugin.newexporthass`
+            - Can coexist with the original ExportToHASS plugin without class conflicts
+          files: ${{ steps.artifact.outputs.FILE }}
+          draft: false
+          prerelease: false
