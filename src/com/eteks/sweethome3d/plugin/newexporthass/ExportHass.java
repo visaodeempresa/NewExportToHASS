@@ -12,8 +12,10 @@ import com.eteks.sweethome3d.viewcontroller.View;
 import org.json.*;
 import java.io.File;
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.ResourceBundle;
 
 import javax.media.j3d.BranchGroup;
@@ -118,6 +120,17 @@ public class ExportHass extends Plugin {
 	        setEnabled(true);
 	     }
 	
+		private String sanitizeRoomName(String name) {
+		    if (name == null || name.trim().isEmpty()) {
+		        return "UNKNOWN";
+		    }
+		    String s = name.trim().toUpperCase()
+		                   .replaceAll("[^A-Z0-9]", "_")
+		                   .replaceAll("_+", "_")
+		                   .replaceAll("^_|_$", "");
+		    return s.isEmpty() ? "UNKNOWN" : s;
+		}
+
 		private File exportHomeStructure(Home home, Object3DFactory objectFactory,
 	            String homeStructureObjName, File exportedFile) throws IOException {
 			// Clone home to be able to handle it independently
@@ -135,10 +148,19 @@ public class ExportHass extends Plugin {
 			
 		
 			Integer wallIndex = 0;
-		    Integer roomIndex = 0;	
 		    Integer objectIndex = 0;
 		    String level = "";
-			
+
+		    // Pre-pass: count how many times each sanitized room name appears
+		    Map<String, Integer> roomNameCount = new HashMap<String, Integer>();
+		    Map<String, Integer> roomNameUsed  = new HashMap<String, Integer>();
+		    for (HomeObject item : home.getHomeObjects()) {
+		        if (item instanceof Room) {
+		            String rn = sanitizeRoomName(((Room) item).getName());
+		            roomNameCount.put(rn, roomNameCount.containsKey(rn) ? roomNameCount.get(rn) + 1 : 1);
+		        }
+		    }
+
 		    for (HomeObject item : home.getHomeObjects()) {
 		    	//JOptionPane.showMessageDialog(null, ((HomePieceOfFurniture) item).getName(), "Item", JOptionPane.INFORMATION_MESSAGE);
 		    	if (item instanceof HomeEnvironment || item instanceof Camera || item instanceof Level) {
@@ -182,10 +204,19 @@ public class ExportHass extends Plugin {
 		    		else if (item instanceof Room) {
 		    			if (levels.size() > 1) {
 		    				level = String.format("lvl%03d", levels.indexOf(((Room) item).getLevel()));
-			    		} else { 
+			    		} else {
 	    					level = "";
 	    				}
-		    			newnode.setName(level+"room_"+ roomIndex++ );
+		    			String rn = sanitizeRoomName(((Room) item).getName());
+		    			String roomNodeName;
+		    			if (roomNameCount.containsKey(rn) && roomNameCount.get(rn) > 1) {
+		    			    int idx = roomNameUsed.containsKey(rn) ? roomNameUsed.get(rn) : 1;
+		    			    roomNameUsed.put(rn, idx + 1);
+		    			    roomNodeName = "ROOM_" + rn + "_" + idx;
+		    			} else {
+		    			    roomNodeName = "ROOM_" + rn;
+		    			}
+		    			newnode.setName(level + roomNodeName);
 		    		}
 		    		else {
 		    			if (levels.size() > 1) {
