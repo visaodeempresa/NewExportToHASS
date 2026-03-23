@@ -1,30 +1,76 @@
-# ExportToHASS
-Sweethome3D Plugin for Home Assistant Export to be used together with the floor 3D card (https://github.com/adizanni/floor3d-card)
+# NewExportToHASS
+
+Fork of [ExportToHASS](https://github.com/adizanni/ExportToHASS) by adizanni.
+
+SweetHome3D plugin that exports a 3D home model to Wavefront OBJ format optimized for the [floor3d-card](https://github.com/adizanni/floor3d-card) in Home Assistant.
+
+**Why a fork?** This fork renames the internal Java package and plugin identifier so that `NewExportToHASS` and the original `ExportToHASS` can be installed simultaneously in SweetHome3D without class-loading conflicts.
+
+---
 
 ## Plugin Installation
 
-Copy the file https://github.com/adizanni/ExportToHASS/releases/latest/download/ExportToHASSPlugin.sh3p to the Plugin Sweethome directory. In linux this is the folder ~/.eteks/sweethome3d/plugins/. In Windows just double-click on the sh3p plugin file (I've been reported some issues related to this installation method, please follow [this](https://github.com/adizanni/ExportToHASS/issues/1#issuecomment-904966326) procedure instead)
-The plugin binary is currently compiled with SweetHome3d 6.6 and I can only guarantee it working in that version. Starting from this version I will create releases tagged with the SweetHome3d version, so that if you do not want to upgrade your sweethome version, you will stay with the old one that is working for you (of course you will not benefit from the bug fix and new features).
+1. Download the latest `NewExportToHASSPlugin-<version>-sh3d6.6.sh3p` from [Releases](../../releases/latest).
+2. Copy it to your SweetHome3D plugins folder:
+   - **Linux:** `~/.eteks/sweethome3d/plugins/`
+   - **Windows/macOS:** double-click the `.sh3p` file.
+3. Restart SweetHome3D.
+4. The action appears under **Tools → Export obj to HASS**.
+
+The plugin is compiled against SweetHome3D 6.6. It requires SweetHome3D ≥ 6.5 and Java ≥ 1.5.
+
+---
 
 ## How to use
 
-Open your model, click on menu 'Tools\Export obj to HASS', choose the  name of the zip file where to store the wavefront format (obj, mtl and texture files). Once the zip created unzip it to your homeassistant /config/www/<your model folder> the model will have the 'home' name by default. You will find also in the zip a json file with a list of object_id of the file, this  is used to feed the object_id dropdown in the card editor of HomeAssistant.
-  
-### How it works
- 
-I have conceived this plugin to workaround the object_id change happening between 2 exports when other objects are removed from the model. This is achieved by using the object name that you will find in the properties of the 3D object in Sweethome3D. Of course the name of the object should be unique in the model (no control yet, this version is still highly rudimentary). If you want an object to group together all the components with a unique name you just append a '#' to the end of the object name. 
+Open your model, click **Tools → Export obj to HASS**, choose a destination ZIP file. Once the ZIP is created, unzip it to `/config/www/<your-model-folder>/` on your Home Assistant instance. The model file is named `home.obj` by default. The ZIP also contains a JSON file listing all `object_id` values, which feeds the dropdown in the floor3d-card editor.
 
-### Notes
-  
-this rules establish the characters that are allowed in the object name (plus the '#' that will be removed by the export): this is because of waterfront format standard":
-  
-```java
-if (!(car >= 'a' && car <= 'z'
-|| car >= 'A' && car <= 'Z'
-|| car >= '0' && car <= '9'
-|| car == '_' ) {
-return false;
-}
+### How it works
+
+Objects are named using the **object name** set in SweetHome3D's properties panel — not an auto-generated index — so that IDs stay stable between exports even when other objects are removed.
+
+- Append `#` to an object name to group all its sub-components under one ID (the `#` is stripped on export).
+- Multi-level homes: each object is prefixed with `lvl000`, `lvl001`, … matching the level index.
+- Naming rules — valid characters in object names:
+
 ```
-                         
-Give feedback.
+a–z  A–Z  0–9  _ (underscore)
+# is allowed as a grouping marker and stripped on export
+```
+
+### Object type mapping
+
+| SweetHome3D type   | OBJ object name pattern            |
+|--------------------|------------------------------------|
+| Furniture piece    | `[lvlNNN]<object_name>`            |
+| Furniture group    | `[lvlNNN]<group_name>_<item_name>` |
+| Wall               | `[lvlNNN]wall_<index>`             |
+| Room               | `[lvlNNN]room_<index>`             |
+| Other              | `[lvlNNN]object_<index>`           |
+
+---
+
+## Building from source
+
+Requires JDK 7+ and [Apache Ant](https://ant.apache.org/).
+
+```bash
+ant          # clean → compile → package
+# Output: dist/NewExportToHASSPlugin-<version>-sh3d6.6.sh3p
+```
+
+Releases are also built automatically by the GitHub Actions workflow (`.github/workflows/release.yml`) when a version tag `v*` is pushed.
+
+---
+
+## Architecture
+
+See [docs/architecture.md](docs/architecture.md) for a full technical description with diagrams.
+
+---
+
+## License
+
+GNU General Public License v3. See [LICENSE](LICENSE).
+
+Original work © 2008 Emmanuel PUYBARET / eTeks. Fork maintained separately.
