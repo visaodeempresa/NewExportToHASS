@@ -1571,6 +1571,11 @@ public class OBJWriter extends FilterWriter {
       // README goes under docs/, YAML goes under code/, everything else at root
       zipOut = new ZipOutputStream(new FileOutputStream(zipFile));
       zipOut.setLevel(compressionLevel);
+      // Explicit directory entries so all ZIP clients show docs/ and code/ folders
+      zipOut.putNextEntry(new ZipEntry("docs/"));
+      zipOut.closeEntry();
+      zipOut.putNextEntry(new ZipEntry("code/"));
+      zipOut.closeEntry();
       for (File tempFile : tempFolder.listFiles()) {
         if (tempFile.isFile()) {
           String zipEntryName;
