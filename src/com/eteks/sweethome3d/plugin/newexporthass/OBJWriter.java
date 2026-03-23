@@ -1526,11 +1526,14 @@ public class OBJWriter extends FilterWriter {
       writer.close();
       jsonwriter.close();
 
-      // Generate <objname>-README.MD with a deduplicated table of object names
-      String readmeEntryName = entryName.toLowerCase().endsWith(".obj")
-          ? entryName.substring(0, entryName.length() - 4) + "-README.MD"
-          : entryName + "-README.MD";
-      File readmeFile = new File(tempFolder, readmeEntryName);
+      // Derive base name (without .obj extension)
+      String baseName = entryName.toLowerCase().endsWith(".obj")
+          ? entryName.substring(0, entryName.length() - 4)
+          : entryName;
+
+      // Generate <baseName>-README.MD (will be placed under docs/ in the ZIP)
+      String readmeFileName = baseName + "-README.MD";
+      File readmeFile = new File(tempFolder, readmeFileName);
       Writer readmeWriter = new OutputStreamWriter(
           new BufferedOutputStream(new FileOutputStream(readmeFile)), "UTF-8");
       // Extract unique base names from the JSON (strip lvlNNN prefix and _<digits> suffix)
@@ -1559,14 +1562,28 @@ public class OBJWriter extends FilterWriter {
       readmeWriter.write(readme.toString());
       readmeWriter.close();
 
+      // Create empty <baseName>-new-floor3d-card.yaml (will be placed under code/ in the ZIP)
+      String yamlFileName = baseName + "-new-floor3d-card.yaml";
+      File yamlFile = new File(tempFolder, yamlFileName);
+      new FileOutputStream(yamlFile).close();
+
       // Create a ZIP file containing temp folder files (OBJ + MTL + texture files)
+      // README goes under docs/, YAML goes under code/, everything else at root
       zipOut = new ZipOutputStream(new FileOutputStream(zipFile));
       zipOut.setLevel(compressionLevel);
       for (File tempFile : tempFolder.listFiles()) {
         if (tempFile.isFile()) {
+          String zipEntryName;
+          if (tempFile.getName().equals(readmeFileName)) {
+            zipEntryName = "docs/" + tempFile.getName();
+          } else if (tempFile.getName().equals(yamlFileName)) {
+            zipEntryName = "code/" + tempFile.getName();
+          } else {
+            zipEntryName = tempFile.getName();
+          }
           InputStream tempIn = null;
           try {
-            zipOut.putNextEntry(new ZipEntry(tempFile.getName()));
+            zipOut.putNextEntry(new ZipEntry(zipEntryName));
             tempIn = new FileInputStream(tempFile);
             byte [] buffer = new byte [8096];
             int size;
